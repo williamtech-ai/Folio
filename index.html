@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Folio — Application Tracking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#EBEEF4;--surface:#FFFFFF;--surface-2:#F5F7FB;
+    --ink:#14202E;--ink-soft:#566578;--ink-faint:#8593A4;
+    --line:#DCE2EC;--line-strong:#C7D0DD;
+    --indigo:#27295F;--indigo-2:#3A3D86;--indigo-soft:#5F62B0;
+    --gold:#A6710A;--gold-fill:#E2A82C;--gold-bg:#FBF2DF;
+    --green:#2C7A57;--green-bg:#E9F4EE;--alert:#BE3A2C;
+    --radius:18px;--radius-sm:11px;
+    --shadow:0 1px 2px rgba(20,32,46,.05), 0 16px 40px -22px rgba(20,32,46,.30);
+    --display:"Space Grotesk","Trebuchet MS",system-ui,sans-serif;
+    --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--body);background:var(--paper);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+  button{font-family:inherit;cursor:pointer;}
+  input,textarea,select{font-family:inherit;font-size:16px;}
+  a{color:inherit;}
+  :focus-visible{outline:2.5px solid var(--indigo-soft);outline-offset:2px;border-radius:6px;}
+  .mono{font-family:var(--mono);}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px;}
+  .wrap-narrow{max-width:640px;margin:0 auto;padding:0 20px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint);}
+
+  .seal{display:inline-block;width:34px;height:34px;flex-shrink:0;}
+  .seal--lg{width:96px;height:96px;}
+
+  .demo-banner{background:var(--gold-bg);border-bottom:1px solid #EAD9AE;color:var(--gold);font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-align:center;padding:7px 12px;}
+  .demo-banner:empty{display:none;}
+
+  .nav{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:60px;}
+  .brand{display:flex;align-items:center;gap:10px;border:none;background:none;padding:0;}
+  .brand-name{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.01em;}
+  .brand-tag{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);display:block;margin-top:-3px;}
+  .nav-links{display:flex;align-items:center;gap:6px;}
+  .navlink{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);background:none;border:1px solid transparent;padding:8px 12px;border-radius:8px;text-decoration:none;}
+  .navlink:hover{background:var(--surface-2);}
+  .navlink.solid{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+
+  .hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#23254F 0%,var(--indigo) 55%,#1F2152 100%);color:#fff;}
+  .hero::before{content:"";position:absolute;top:-160px;right:-120px;width:460px;height:460px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+  .hero::after{content:"";position:absolute;top:-90px;right:-50px;width:300px;height:300px;border:1px solid rgba(255,255,255,.06);border-radius:50%;}
+  .hero-inner{position:relative;padding:54px 0 60px;}
+  .hero .eyebrow{color:rgba(255,255,255,.55);}
+  .hero h1{font-family:var(--display);font-weight:700;font-size:38px;line-height:1.08;letter-spacing:-.02em;margin:14px 0 0;max-width:14ch;}
+  .hero p.sub{color:rgba(255,255,255,.74);font-size:16.5px;max-width:46ch;margin:16px 0 0;}
+
+  .lookup{background:var(--surface);border-radius:var(--radius);box-shadow:0 24px 60px -24px rgba(0,0,0,.5);padding:20px;margin-top:30px;max-width:560px;}
+  .lookup label{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);display:block;margin-bottom:9px;}
+  .lookup-row{display:flex;gap:10px;}
+  .lookup input{flex:1;border:1.5px solid var(--line-strong);border-radius:var(--radius-sm);padding:14px 15px;color:var(--ink);font-family:var(--mono);letter-spacing:.04em;background:var(--surface-2);}
+  .lookup input::placeholder{color:var(--ink-faint);font-family:var(--mono);}
+  .lookup input:focus{background:#fff;border-color:var(--indigo-soft);}
+  .btn-track{border:none;background:var(--indigo);color:#fff;border-radius:var(--radius-sm);padding:0 22px;font-weight:600;font-size:15px;white-space:nowrap;}
+  .btn-track:hover{background:var(--indigo-2);}
+  .btn-track:disabled{opacity:.6;}
+  .lookup-hint{font-size:12.5px;color:var(--ink-faint);margin-top:11px;}
+  .lookup-hint b{color:var(--ink-soft);font-family:var(--mono);font-weight:500;}
+
+  .strip{padding:46px 0 10px;}
+  .strip h2{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);text-align:center;margin:0 0 26px;}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .pstep{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:18px 16px;position:relative;}
+  .pstep .num{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--gold);}
+  .pstep h3{font-family:var(--display);font-weight:600;font-size:15.5px;margin:10px 0 5px;}
+  .pstep p{font-size:13px;color:var(--ink-soft);margin:0;}
+
+  .info{padding:40px 0 64px;text-align:center;color:var(--ink-soft);}
+  .info p{max-width:50ch;margin:0 auto;font-size:14.5px;}
+
+  .foot{border-top:1px solid var(--line);padding:26px 0;color:var(--ink-faint);font-size:12.5px;}
+  .foot-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .foot a{color:var(--ink-soft);text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:.06em;}
+
+  .page{padding:34px 0 70px;min-height:60vh;}
+  .loading{text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px;letter-spacing:.06em;padding-top:50px;}
+  .backlink{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ink-soft);background:none;border:none;padding:6px 0;display:inline-flex;align-items:center;gap:7px;}
+  .backlink:hover{color:var(--ink);}
+
+  .file{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-top:18px;}
+  .file-top{padding:22px 24px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px;position:relative;}
+  .file-ref{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ink-soft);}
+  .file-name{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:-.01em;margin:8px 0 0;}
+  .file-sub{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .pill{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);padding:4px 9px;border-radius:6px;}
+  .status-badge{flex-shrink:0;text-align:center;}
+  .status-stamp{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 13px;border-radius:9px;border:2px solid;line-height:1.1;display:inline-block;transform:rotate(.4deg);}
+  .status-stamp.prog{color:var(--indigo);border-color:var(--indigo-soft);background:#EEF0FB;}
+  .status-stamp.done{color:var(--green);border-color:var(--green);background:var(--green-bg);}
+
+  .file-body{padding:22px 24px 8px;}
+  .file-body .updated{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--ink-faint);margin-bottom:18px;}
+
+  .timeline{padding:2px 0 6px;}
+  .tl-step{display:grid;grid-template-columns:24px 1fr;gap:14px;padding-bottom:24px;}
+  .tl-marker{position:relative;display:flex;justify-content:center;}
+  .dot{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line-strong);background:#fff;z-index:1;margin-top:2px;display:grid;place-items:center;color:#fff;font-size:9px;line-height:1;}
+  .tl-step.done .dot{background:var(--indigo);border-color:var(--indigo);}
+  .tl-step.current .dot{border-color:var(--gold-fill);background:var(--gold-fill);box-shadow:0 0 0 5px var(--gold-bg);}
+  .tl-step:not(:last-child) .tl-marker::after{content:"";position:absolute;top:19px;bottom:-24px;left:50%;transform:translateX(-50%);width:2px;background:var(--line);}
+  .tl-step.done:not(:last-child) .tl-marker::after{background:var(--indigo);}
+  .tl-label{font-family:var(--display);font-weight:600;font-size:16px;}
+  .tl-step.pending .tl-label{color:var(--ink-faint);font-weight:500;}
+  .tl-step.current .tl-label{color:var(--gold);}
+  .tl-meta{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-soft);margin-top:3px;}
+  .tl-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-left:8px;}
+  .tl-note{font-size:13px;color:var(--ink-soft);margin-top:5px;}
+  .tl-note:empty{display:none;}
+
+  .notfound{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:46px 28px;text-align:center;margin-top:18px;}
+  .notfound h2{font-family:var(--display);font-size:20px;margin:14px 0 6px;}
+  .notfound p{color:var(--ink-soft);max-width:42ch;margin:0 auto;font-size:14.5px;}
+
+  .login{max-width:380px;margin:48px auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;}
+  .login h2{font-family:var(--display);font-weight:700;font-size:21px;margin:14px 0 4px;}
+  .login p{color:var(--ink-soft);font-size:13.5px;margin:0 0 18px;}
+  .login .field{margin-bottom:12px;}
+  .demo-hint{background:var(--gold-bg);border:1px solid #EAD9AE;border-radius:9px;padding:9px 12px;font-size:12px;color:var(--gold);margin-top:14px;font-family:var(--mono);letter-spacing:.03em;}
+
+  .admin-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .admin-head h1{font-family:var(--display);font-weight:700;font-size:26px;margin:6px 0 0;letter-spacing:-.01em;}
+  .admin-head .eyebrow{color:var(--ink-faint);}
+  .btn-primary{border:none;background:var(--indigo);color:#fff;border-radius:var(--radius-sm);padding:12px 18px;font-weight:600;font-size:14.5px;display:inline-flex;align-items:center;gap:8px;}
+  .btn-primary:hover{background:var(--indigo-2);}
+  .btn-primary .plus{font-size:18px;margin-top:-1px;}
+
+  .searchbar{margin-bottom:14px;}
+  .searchbar input{width:100%;border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface);color:var(--ink);}
+  .searchbar input::placeholder{color:var(--ink-faint);}
+
+  .rec-list{display:flex;flex-direction:column;gap:10px;}
+  .rec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow);padding:14px 16px;display:flex;align-items:center;gap:14px;text-align:left;width:100%;border-left:3px solid var(--indigo);}
+  .rec.is-done{border-left-color:var(--green);}
+  .rec-main{flex:1;min-width:0;}
+  .rec-name{font-family:var(--display);font-weight:600;font-size:16px;}
+  .rec-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:5px;}
+  .rec-ref{font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--ink-soft);}
+  .rec-status{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:#EEF0FB;color:var(--indigo);}
+  .rec.is-done .rec-status{background:var(--green-bg);color:var(--green);}
+  .rec-actions{display:flex;gap:6px;flex-shrink:0;}
+  .rec-go{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-soft);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:500;}
+  .rec-go:hover{background:var(--surface-2);color:var(--ink);}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 22px 20px;margin-top:16px;}
+  .panel h2{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 16px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .field{margin-bottom:2px;}
+  .field label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;}
+  .field input,.field textarea,.field select{width:100%;border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:11px 12px;background:#fff;color:var(--ink);}
+  .field input.mono{font-family:var(--mono);letter-spacing:.04em;}
+
+  .stage-row{display:flex;align-items:flex-start;gap:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;}
+  .stage-row.cur{border-color:var(--gold-fill);background:var(--gold-bg);}
+  .stage-row.past .stage-name{color:var(--ink-soft);}
+  .stage-num{font-family:var(--mono);font-size:11px;color:var(--ink-faint);min-width:20px;padding-top:9px;}
+  .stage-body{flex:1;min-width:0;}
+  .stage-name{font-family:var(--display);font-weight:600;font-size:15px;}
+  .stage-state{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-left:8px;}
+  .stage-state.s-done{color:var(--indigo-soft);}
+  .stage-state.s-cur{color:var(--gold);}
+  .stage-state.s-pend{color:var(--ink-faint);}
+  .stage-inputs{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .stage-inputs input{border:1px solid var(--line-strong);border-radius:8px;padding:7px 10px;background:#fff;font-size:13px;}
+  .stage-inputs input.date{font-family:var(--mono);}
+  .stage-inputs input.note{flex:1;min-width:120px;}
+  .stage-side{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+  .ministage{border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);border-radius:7px;padding:6px 9px;font-size:11px;white-space:nowrap;}
+  .ministage:hover{background:var(--surface-2);color:var(--ink);}
+  .ministage.gold{border-color:var(--gold-fill);color:var(--gold);}
+  .ministage.x{color:var(--alert);border-color:#E6C2BD;}
+
+  .addstage{display:flex;gap:8px;margin-top:10px;}
+  .addstage input{flex:1;border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:11px 12px;background:#fff;}
+  .addstage button{border:none;background:var(--indigo);color:#fff;border-radius:var(--radius-sm);padding:0 16px;font-weight:600;font-size:14px;}
+
+  .panel-foot{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+  .btn-save{border:none;background:var(--green);color:#fff;border-radius:var(--radius-sm);padding:11px 18px;font-weight:600;font-size:14.5px;}
+  .btn-ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-soft);border-radius:var(--radius-sm);padding:11px 16px;font-size:14px;font-weight:500;text-decoration:none;display:inline-block;}
+  .btn-ghost.danger{border-color:#E6C2BD;color:var(--alert);}
+  .btn-advance{border:1.5px solid var(--gold-fill);background:var(--gold-bg);color:var(--gold);border-radius:var(--radius-sm);padding:11px 18px;font-weight:600;font-size:14.5px;}
+
+  .empty{text-align:center;padding:50px 24px;color:var(--ink-soft);}
+  .empty .mk{font-family:var(--display);font-size:26px;color:var(--line-strong);letter-spacing:.1em;margin-bottom:12px;}
+  .empty h2{font-family:var(--display);font-size:18px;color:var(--ink);margin:0 0 6px;}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);background:var(--ink);color:#fff;font-size:13.5px;padding:11px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s ease;z-index:80;max-width:calc(100% - 32px);}
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  @media (max-width:720px){
+    .hero h1{font-size:30px;}
+    .steps{grid-template-columns:1fr 1fr;}
+    .grid2{grid-template-columns:1fr;}
+    .file-top{flex-direction:column;}
+    .status-badge{align-self:flex-start;}
+  }
+  @media (max-width:430px){
+    .lookup-row{flex-direction:column;}
+    .btn-track{padding:13px;}
+    .steps{grid-template-columns:1fr;}
+    .rec{flex-wrap:wrap;}
+    .rec-actions{width:100%;}
+    .rec-go{flex:1;text-align:center;}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important;}}
+</style>
+</head>
+<body>
+  <div class="demo-banner" id="banner"></div>
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <button class="brand" data-nav="home" aria-label="Home">
+        <span class="seal" id="navSeal"></span>
+        <span style="text-align:left">
+          <span class="brand-name" id="brandName">Folio</span>
+          <span class="brand-tag" id="brandTag">Application Tracking</span>
+        </span>
+      </button>
+      <div class="nav-links" id="navLinks"></div>
+    </div>
+  </nav>
+
+  <main id="app"></main>
+
+  <footer class="foot">
+    <div class="wrap foot-inner">
+      <span id="footText">© 2026 Folio · Application tracking service</span>
+      <a href="#/admin">Staff sign in</a>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     CONFIG  —  fill these in to go live (see SETUP.md)
+     Leave blank to run in demo mode (data stays in this browser).
+     ============================================================ */
+  var BRAND = { name:"Folio", tag:"Application Tracking" };
+  var SUPABASE_URL = "";        // e.g. "https://xxxxxxxx.supabase.co"
+  var SUPABASE_ANON_KEY = "";   // your anon public key
+  /* ============================================================ */
+
+  var USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+  var sb = USE_SUPABASE ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  var ADMIN_PASS = "admin"; // demo-mode only
+
+  /* ---------- small utils ---------- */
+  function sealSVG(size){
+    var cls = size==="lg" ? "seal seal--lg" : "seal";
+    return '<svg class="'+cls+'" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+
+      '<circle cx="20" cy="20" r="18.2" stroke="#E2A82C" stroke-width="1.4" stroke-dasharray="1.6 2.3"/>'+
+      '<circle cx="20" cy="20" r="14" fill="#27295F"/>'+
+      '<circle cx="20" cy="20" r="14" stroke="#3A3D86" stroke-width="1"/>'+
+      '<path d="M14.2 20.2l4 4 7.6-8" stroke="#E2A82C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '</svg>';
+  }
+  var uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);};
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];});}
+  function todayISO(){return new Date().toISOString().slice(0,10);}
+  function fmtDate(iso){
+    if(!iso) return "";
+    var d=new Date(String(iso).slice(0,10)+"T00:00:00"); if(isNaN(d)) return "";
+    var m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return d.getDate()+" "+m[d.getMonth()]+" "+d.getFullYear();
+  }
+  function genRef(){ return "APP-"+new Date().getFullYear()+"-"+Math.floor(1000+Math.random()*9000); }
+  function defaultStages(){
+    return [
+      {label:"Application received", date:todayISO(), note:""},
+      {label:"Documents under review", date:"", note:""},
+      {label:"Processing", date:"", note:""},
+      {label:"Ready for collection", date:"", note:""},
+      {label:"Completed", date:"", note:""}
+    ];
+  }
+
+  /* ---------- record shape helpers ---------- */
+  function fromRow(row){
+    return { id:row.id, ref:row.ref, name:row.applicant_name, type:row.app_type||"",
+             contact:row.contact||"", current:row.current_stage||0,
+             stages:row.stages||[], createdAt:(row.created_at||"").slice(0,10),
+             updatedAt:row.updated_at };
+  }
+  function toRow(rec){
+    return { ref:rec.ref, applicant_name:rec.name, app_type:rec.type||null,
+             contact:rec.contact||null, current_stage:rec.current, stages:rec.stages };
+  }
+  function isComplete(r){ return r.current >= r.stages.length-1; }
+  function statusLabel(r){ return r.stages[r.current] ? r.stages[r.current].label : "—"; }
+  function lastUpdated(r){
+    var d=""; (r.stages||[]).forEach(function(s){ if(s.date && s.date>d) d=s.date; });
+    if(d) return d;
+    if(r.updatedAt) return String(r.updatedAt).slice(0,10);
+    return r.createdAt || "";
+  }
+
+  /* ============================================================
+     DATA LAYER  (demo  |  supabase) — same async interface
+     ============================================================ */
+  var DemoDB = (function(){
+    var KEY="folio.mock.v1", mem=null;
+    function load(){ try{var r=localStorage.getItem(KEY);return r?JSON.parse(r):null;}catch(e){return mem?JSON.parse(mem):null;} }
+    function persist(){ var r=JSON.stringify(data); mem=r; try{localStorage.setItem(KEY,r);}catch(e){} }
+    function seed(){
+      return [
+        { id:uid(), ref:"APP-2026-0042", name:"Adaeze Okoro", type:"Visitor visa", contact:"adaeze@email.com", current:1, createdAt:"2026-06-18",
+          stages:[
+            {label:"Application received", date:"2026-06-18", note:"Submitted online"},
+            {label:"Documents under review", date:"2026-06-20", note:"Verifying passport and bank statement"},
+            {label:"Processing", date:"", note:""},
+            {label:"Ready for collection", date:"", note:""},
+            {label:"Completed", date:"", note:""}
+          ]},
+        { id:uid(), ref:"APP-2026-0117", name:"Daniel Bello", type:"Business registration", contact:"+234 803 000 0000", current:2, createdAt:"2026-06-10",
+          stages:[
+            {label:"Application received", date:"2026-06-10", note:""},
+            {label:"Name reservation", date:"2026-06-12", note:"Name approved by CAC"},
+            {label:"Processing", date:"2026-06-22", note:"Filing incorporation documents"},
+            {label:"Certificate issued", date:"", note:""}
+          ]},
+        { id:uid(), ref:"APP-2026-0009", name:"Grace Eze", type:"Document service", contact:"grace@email.com", current:3, createdAt:"2026-05-28",
+          stages:[
+            {label:"Application received", date:"2026-05-28", note:""},
+            {label:"Under review", date:"2026-05-30", note:""},
+            {label:"Processing", date:"2026-06-03", note:""},
+            {label:"Completed", date:"2026-06-09", note:"Collected by applicant"}
+          ]}
+      ];
+    }
+    var data = load() || seed();
+    if(!load()) persist();
+    return {
+      mode:"demo",
+      lookup: async function(ref){ ref=(ref||"").trim().toLowerCase(); return data.find(function(r){return r.ref.toLowerCase()===ref;})||null; },
+      list:   async function(){ return data.slice(); },
+      get:    async function(id){ return data.find(function(r){return r.id===id;})||null; },
+      create: async function(rec){ rec.id=uid(); rec.createdAt=todayISO(); data.push(rec); persist(); return rec; },
+      update: async function(id,rec){ var r=data.find(function(x){return x.id===id;}); if(r) Object.assign(r,rec); persist(); return r; },
+      remove: async function(id){ data=data.filter(function(x){return x.id!==id;}); persist(); }
+    };
+  })();
+
+  var SbDB = {
+    mode:"supabase",
+    lookup: async function(ref){
+      var res = await sb.rpc("lookup_application", { p_ref:(ref||"").trim() });
+      if(res.error){ console.error(res.error); return null; }
+      var row = res.data && res.data[0];
+      if(!row) return null;
+      return { id:null, ref:row.ref, name:row.applicant_name, type:row.app_type||"",
+               contact:"", current:row.current_stage||0, stages:row.stages||[],
+               updatedAt:row.updated_at, createdAt:"" };
+    },
+    list: async function(){
+      var res = await sb.from("applications").select("*").order("created_at",{ascending:false});
+      if(res.error){ console.error(res.error); throw res.error; }
+      return (res.data||[]).map(fromRow);
+    },
+    get: async function(id){
+      var res = await sb.from("applications").select("*").eq("id",id).maybeSingle();
+      if(res.error){ console.error(res.error); return null; }
+      return res.data ? fromRow(res.data) : null;
+    },
+    create: async function(rec){
+      var res = await sb.from("applications").insert(toRow(rec)).select("*");
+      if(res.error){ console.error(res.error); throw res.error; }
+      return fromRow(res.data[0]);
+    },
+    update: async function(id,rec){
+      var res = await sb.from("applications").update(toRow(rec)).eq("id",id).select("*");
+      if(res.error){ console.error(res.error); throw res.error; }
+      return res.data && res.data[0] ? fromRow(res.data[0]) : null;
+    },
+    remove: async function(id){
+      var res = await sb.from("applications").delete().eq("id",id);
+      if(res.error){ console.error(res.error); throw res.error; }
+    }
+  };
+
+  var DB = USE_SUPABASE ? SbDB : DemoDB;
+
+  /* ============================================================
+     AUTH  (demo password  |  supabase email+password)
+     ============================================================ */
+  var demoAuthed=false, currentUser=null;
+  try{ demoAuthed = sessionStorage.getItem("folio.auth")==="1"; }catch(e){}
+  function isAuthed(){ return USE_SUPABASE ? !!currentUser : demoAuthed; }
+
+  async function signIn(a,b){
+    if(USE_SUPABASE){
+      var res = await sb.auth.signInWithPassword({ email:a, password:b });
+      if(res.error) return { ok:false, msg:res.error.message };
+      currentUser = res.data.user; return { ok:true };
+    }
+    if(a===ADMIN_PASS){ demoAuthed=true; try{sessionStorage.setItem("folio.auth","1");}catch(e){} return {ok:true}; }
+    return { ok:false, msg:"Incorrect password" };
+  }
+  async function signOut(){
+    if(USE_SUPABASE){ try{ await sb.auth.signOut(); }catch(e){} currentUser=null; }
+    else { demoAuthed=false; try{sessionStorage.removeItem("folio.auth");}catch(e){} }
+  }
+
+  /* ============================================================
+     UI helpers
+     ============================================================ */
+  var app=document.getElementById("app");
+  function toast(msg){
+    var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+    clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove("show");},2200);
+  }
+  function loadingView(){ return '<div class="page"><div class="wrap loading">Loading…</div></div>'; }
+  function go(hash){ if(location.hash===hash) route(); else location.hash=hash; }
+
+  /* ============================================================
+     ROUTER
+     ============================================================ */
+  function route(){
+    var h=location.hash.replace(/^#/,"") || "/";
+    var parts=h.split("/").filter(Boolean);
+    renderNav(parts[0]==="admin");
+    if(parts[0]==="track"){ renderResult(decodeURIComponent(parts.slice(1).join("/"))); }
+    else if(parts[0]==="admin"){
+      if(!isAuthed()){ renderLogin(); return; }
+      if(parts[1]==="r" && parts[2]){ renderRecord(parts[2]); }
+      else { renderDashboard(); }
+    } else { renderHome(); }
+    window.scrollTo(0,0);
+  }
+  function renderNav(isAdmin){
+    document.getElementById("navSeal").innerHTML = sealSVG();
+    var el=document.getElementById("navLinks");
+    if(isAdmin && isAuthed()){
+      el.innerHTML='<a class="navlink" href="#/">View public site</a><button class="navlink" data-action="signout">Sign out</button>';
+    } else {
+      el.innerHTML='<a class="navlink solid" href="#/admin">Staff sign in</a>';
+    }
+  }
+
+  /* ============================================================
+     HOME
+     ============================================================ */
+  function renderHome(){
+    app.innerHTML=
+    '<section class="hero"><div class="wrap hero-inner">'+
+      '<span class="eyebrow">Application tracking</span>'+
+      '<h1>Know exactly where your application stands.</h1>'+
+      '<p class="sub">Enter the tracking number from your confirmation to open your file and see every step of the process.</p>'+
+      '<div class="lookup">'+
+        '<label for="refInput">Tracking number</label>'+
+        '<div class="lookup-row">'+
+          '<input id="refInput" type="text" placeholder="APP-2026-0042" autocomplete="off" spellcheck="false" />'+
+          '<button class="btn-track" data-action="track">Track application</button>'+
+        '</div>'+
+        (DB.mode==="demo" ? '<p class="lookup-hint">Try a sample: <b>APP-2026-0042</b> &middot; <b>APP-2026-0117</b> &middot; <b>APP-2026-0009</b></p>' : '<p class="lookup-hint">Your tracking number is on your confirmation.</p>')+
+      '</div>'+
+    '</div></section>'+
+    '<section class="strip"><div class="wrap">'+
+      '<h2>How tracking works</h2>'+
+      '<div class="steps">'+
+        pstep("01","Received","We log your application and issue your tracking number.")+
+        pstep("02","Under review","Your documents are checked and verified.")+
+        pstep("03","Processing","Your application moves through the required steps.")+
+        pstep("04","Ready","You are notified the moment it is done.")+
+      '</div>'+
+    '</div></section>'+
+    '<section class="info"><div class="wrap-narrow">'+
+      '<p>Your tracking number is on the confirmation you received when your application was submitted. Updates appear here automatically as your file progresses.</p>'+
+    '</div></section>';
+    var input=document.getElementById("refInput");
+    input.focus();
+    input.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); doTrack(); } });
+  }
+  function pstep(n,h,p){ return '<div class="pstep"><span class="num">'+n+'</span><h3>'+h+'</h3><p>'+p+'</p></div>'; }
+  function doTrack(){
+    var v=(document.getElementById("refInput").value||"").trim();
+    if(!v){ toast("Enter your tracking number"); return; }
+    go("#/track/"+encodeURIComponent(v));
+  }
+
+  /* ============================================================
+     RESULT (the file)
+     ============================================================ */
+  async function renderResult(ref){
+    app.innerHTML=loadingView();
+    var r=null;
+    try{ r = await DB.lookup(ref); }catch(e){ console.error(e); }
+    if(!r){
+      app.innerHTML='<div class="page"><div class="wrap-narrow">'+
+        '<button class="backlink" data-nav="home">&larr; Track another</button>'+
+        '<div class="notfound">'+sealSVG("lg")+
+          '<h2>We couldn\'t find that number</h2>'+
+          '<p>No application matches <b class="mono">'+esc(ref)+'</b>. Check the tracking number on your confirmation and try again.</p>'+
+        '</div></div></div>';
+      return;
+    }
+    var done=isComplete(r);
+    var stamp=done ? '<span class="status-stamp done">Completed</span>' : '<span class="status-stamp prog">In progress</span>';
+    var tl=r.stages.map(function(s,i){
+      var st = i<r.current ? "done" : (i===r.current ? "current" : "pending");
+      if(done && i===r.current) st="done";
+      var mark = st==="done" ? "✓" : "";
+      var tag = (st==="current" && !done) ? '<span class="tl-tag">Current step</span>' : "";
+      var meta = s.date ? fmtDate(s.date) : (st==="pending" ? "Pending" : "");
+      return '<div class="tl-step '+st+'">'+
+        '<div class="tl-marker"><span class="dot">'+mark+'</span></div>'+
+        '<div class="tl-content"><div class="tl-label">'+esc(s.label)+tag+'</div>'+
+          (meta?'<div class="tl-meta">'+esc(meta)+'</div>':'')+
+          '<div class="tl-note">'+esc(s.note||"")+'</div></div></div>';
+    }).join("");
+    app.innerHTML='<div class="page"><div class="wrap-narrow">'+
+      '<button class="backlink" data-nav="home">&larr; Track another</button>'+
+      '<div class="file"><div class="file-top">'+
+        '<div><div class="file-ref">'+esc(r.ref)+'</div>'+
+          '<h1 class="file-name">'+esc(r.name)+'</h1>'+
+          '<div class="file-sub"><span class="pill">'+esc(r.type||"Application")+'</span><span class="pill">'+r.stages.length+' steps</span></div></div>'+
+        '<div class="status-badge">'+stamp+'</div></div>'+
+        '<div class="file-body"><div class="updated">Current status &mdash; '+esc(statusLabel(r))+' &middot; updated '+esc(fmtDate(lastUpdated(r)))+'</div>'+
+        '<div class="timeline">'+tl+'</div></div></div>'+
+    '</div></div>';
+  }
+
+  /* ============================================================
+     ADMIN — login
+     ============================================================ */
+  function renderLogin(){
+    var fields = USE_SUPABASE
+      ? '<div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" placeholder="you@example.com" /></div>'+
+        '<div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" placeholder="Your password" /></div>'
+      : '<div class="field"><label for="pw">Password</label><input id="pw" type="password" placeholder="Password" /></div>';
+    app.innerHTML='<div class="page"><div class="wrap"><div class="login">'+sealSVG()+
+      '<h2>Staff sign in</h2><p>Sign in to set up and update application records.</p>'+
+      fields+
+      '<div style="margin-top:6px"><button class="btn-primary" data-action="login" style="width:100%;justify-content:center">Sign in</button></div>'+
+      (USE_SUPABASE ? '' : '<div class="demo-hint">Demo password: admin</div>')+
+    '</div></div></div>';
+    var pw=document.getElementById("pw");
+    var first = document.getElementById("email") || pw;
+    first.focus();
+    pw.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } });
+  }
+  async function doLogin(){
+    var email = document.getElementById("email") ? document.getElementById("email").value.trim() : "";
+    var pw = document.getElementById("pw").value;
+    var btn = document.querySelector('[data-action="login"]');
+    if(btn){ btn.disabled=true; btn.textContent="Signing in…"; }
+    var res = await signIn(USE_SUPABASE ? email : pw, pw);
+    if(res.ok){ toast("Signed in"); go("#/admin"); }
+    else { toast(res.msg||"Sign in failed"); if(btn){ btn.disabled=false; btn.textContent="Sign in"; } }
+  }
+
+  /* ============================================================
+     ADMIN — dashboard
+     ============================================================ */
+  var dashCache=[], dashQuery="";
+  function recRow(r){
+    var done=isComplete(r);
+    return '<button class="rec'+(done?" is-done":"")+'" data-action="open" data-id="'+r.id+'">'+
+      '<div class="rec-main"><div class="rec-name">'+esc(r.name)+'</div>'+
+      '<div class="rec-meta"><span class="rec-ref">'+esc(r.ref)+'</span>'+
+      '<span class="rec-status">'+esc(statusLabel(r))+'</span>'+
+      '<span class="pill">'+esc(r.type||"Application")+'</span></div></div>'+
+      '<span class="rec-actions"><span class="rec-go">Manage &rarr;</span></span></button>';
+  }
+  function filtered(){
+    var q=dashQuery.toLowerCase();
+    var arr=dashCache.slice();
+    arr.sort(function(a,b){ var ca=isComplete(a),cb=isComplete(b); if(ca!==cb) return ca?1:-1; return (b.createdAt||"").localeCompare(a.createdAt||""); });
+    if(q) arr=arr.filter(function(r){return r.ref.toLowerCase().indexOf(q)>-1||r.name.toLowerCase().indexOf(q)>-1||(r.type||"").toLowerCase().indexOf(q)>-1;});
+    return arr;
+  }
+  function paintDashList(){
+    var arr=filtered();
+    var cont=document.querySelector(".rec-list"); if(!cont) return;
+    cont.innerHTML = arr.length ? arr.map(recRow).join("")
+      : '<div class="empty"><div class="mk">&empty;</div><h2>'+(dashQuery?"No matches":"No records yet")+'</h2><p>'+(dashQuery?"Try a different search.":"Create your first application record to get started.")+'</p></div>';
+  }
+  async function renderDashboard(){
+    app.innerHTML=loadingView();
+    try{ dashCache = await DB.list(); }
+    catch(e){ app.innerHTML='<div class="page"><div class="wrap"><div class="empty"><h2>Could not load records</h2><p>'+esc(e.message||"Check your connection and admin access.")+'</p></div></div></div>'; return; }
+    app.innerHTML='<div class="page"><div class="wrap">'+
+      '<div class="admin-head"><div><span class="eyebrow">Admin</span><h1>Tracking records</h1></div>'+
+        '<button class="btn-primary" data-action="new"><span class="plus">+</span> New record</button></div>'+
+      '<div class="searchbar"><input id="dashSearch" type="text" placeholder="Search by name, tracking number or type…" value="'+esc(dashQuery)+'" /></div>'+
+      '<div class="rec-list"></div>'+
+    '</div></div>';
+    paintDashList();
+    document.getElementById("dashSearch").addEventListener("input",function(){ dashQuery=this.value; paintDashList(); });
+  }
+  async function createRecord(){
+    var rec={ ref:genRef(), name:"New applicant", type:"", contact:"", current:0, stages:defaultStages() };
+    try{ var saved = await DB.create(rec); toast("Record created — edit the details"); go("#/admin/r/"+saved.id); }
+    catch(e){ toast(e.message||"Couldn't create record"); }
+  }
+
+  /* ============================================================
+     ADMIN — record editor
+     ============================================================ */
+  var activeRecord=null;
+  async function renderRecord(id){
+    app.innerHTML=loadingView();
+    try{ activeRecord = await DB.get(id); }catch(e){ console.error(e); }
+    if(!activeRecord){ toast("Record not found"); go("#/admin"); return; }
+    paintRecord();
+  }
+  function paintRecord(){
+    var r=activeRecord;
+    var stagesHTML=r.stages.map(function(s,i){
+      var cls = i<r.current ? "past" : (i===r.current ? "cur" : "");
+      var stateLabel = i<r.current ? '<span class="stage-state s-done">Done</span>' :
+                       (i===r.current ? '<span class="stage-state s-cur">Current</span>' : '<span class="stage-state s-pend">Pending</span>');
+      var setBtn = i===r.current ? '' : '<button class="ministage gold" data-action="setcur" data-i="'+i+'">Set current</button>';
+      return '<div class="stage-row '+cls+'"><div class="stage-num">'+(i+1)+'</div>'+
+        '<div class="stage-body"><div class="stage-name">'+esc(s.label)+stateLabel+'</div>'+
+          '<div class="stage-inputs">'+
+            '<input class="date" type="date" data-stage-date="'+i+'" value="'+esc(s.date||"")+'" />'+
+            '<input class="note" type="text" placeholder="Note (shown to applicant)" data-stage-note="'+i+'" value="'+esc(s.note||"")+'" /></div></div>'+
+        '<div class="stage-side">'+setBtn+'<button class="ministage x" data-action="delstage" data-i="'+i+'">Remove</button></div></div>';
+    }).join("");
+    app.innerHTML='<div class="page"><div class="wrap">'+
+      '<button class="backlink" data-action="todash">&larr; All records</button>'+
+      '<div class="panel"><h2>Applicant details</h2><div class="grid2">'+
+        '<div class="field"><label>Tracking number</label><input class="mono" data-f="ref" value="'+esc(r.ref)+'" /></div>'+
+        '<div class="field"><label>Applicant name</label><input data-f="name" value="'+esc(r.name)+'" /></div>'+
+        '<div class="field"><label>Application type</label><input data-f="type" value="'+esc(r.type||"")+'" placeholder="Visa, registration, document…" /></div>'+
+        '<div class="field"><label>Contact (email or phone)</label><input data-f="contact" value="'+esc(r.contact||"")+'" /></div>'+
+      '</div></div>'+
+      '<div class="panel"><h2>Process stages</h2><div style="margin-bottom:14px">'+
+        (isComplete(r) ? '<span class="pill" style="background:var(--green-bg);color:var(--green);border-color:#BFE0CC">This application is complete</span>'
+                       : '<button class="btn-advance" data-action="advance">Advance to next stage &rarr;</button>')+
+        '</div>'+stagesHTML+
+        '<div class="addstage"><input id="newStage" type="text" placeholder="Add a stage…" maxlength="60" /><button data-action="addstage">Add</button></div></div>'+
+      '<div class="panel-foot">'+
+        '<button class="btn-save" data-action="save">Save changes</button>'+
+        '<a class="btn-ghost" href="#/track/'+encodeURIComponent(r.ref)+'">Preview public view</a>'+
+        '<button class="btn-ghost danger" data-action="delrec">Delete record</button></div>'+
+    '</div></div>';
+    var ns=document.getElementById("newStage");
+    ns.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); doAddStage(); } });
+  }
+  function readDetailsInto(r){
+    document.querySelectorAll("[data-f]").forEach(function(el){ r[el.getAttribute("data-f")]=el.value.trim(); });
+    document.querySelectorAll("[data-stage-date]").forEach(function(el){ var i=+el.getAttribute("data-stage-date"); if(r.stages[i]) r.stages[i].date=el.value; });
+    document.querySelectorAll("[data-stage-note]").forEach(function(el){ var i=+el.getAttribute("data-stage-note"); if(r.stages[i]) r.stages[i].note=el.value.trim(); });
+  }
+  async function commitActive(silentMsg){
+    var r=activeRecord;
+    try{ var saved = await DB.update(r.id, r); if(saved) activeRecord=saved; paintRecord(); if(silentMsg) toast(silentMsg); }
+    catch(e){ toast(e.message||"Couldn't save"); }
+  }
+  async function doAdvance(){
+    readDetailsInto(activeRecord); var r=activeRecord;
+    if(r.current<r.stages.length-1){ r.current++; if(!r.stages[r.current].date) r.stages[r.current].date=todayISO(); }
+    await commitActive("Moved to next stage");
+  }
+  async function doSetCur(i){
+    readDetailsInto(activeRecord); var r=activeRecord;
+    r.current=i; if(!r.stages[i].date) r.stages[i].date=todayISO();
+    await commitActive();
+  }
+  async function doDelStage(i){
+    readDetailsInto(activeRecord); var r=activeRecord;
+    if(r.stages.length<=1) return;
+    r.stages.splice(i,1); if(r.current>=r.stages.length) r.current=r.stages.length-1;
+    await commitActive();
+  }
+  async function doAddStage(){
+    readDetailsInto(activeRecord);
+    var v=(document.getElementById("newStage").value||"").trim(); if(!v) return;
+    activeRecord.stages.push({label:v,date:"",note:""});
+    await commitActive();
+  }
+  async function doSave(){
+    readDetailsInto(activeRecord);
+    await commitActive("Changes saved");
+  }
+  async function doDelRecord(){
+    var r=activeRecord;
+    if(!confirm('Delete "'+r.name+'" ('+r.ref+')? This cannot be undone.')) return;
+    try{ await DB.remove(r.id); toast("Record deleted"); go("#/admin"); }
+    catch(e){ toast(e.message||"Couldn't delete"); }
+  }
+
+  /* ============================================================
+     Global click dispatch
+     ============================================================ */
+  document.addEventListener("click",function(e){
+    var navBtn=e.target.closest("[data-nav]");
+    if(navBtn){ go(navBtn.getAttribute("data-nav")==="home"?"#/":"#/admin"); return; }
+    var el=e.target.closest("[data-action]"); if(!el) return;
+    var a=el.getAttribute("data-action");
+    if(a==="track"){ doTrack(); }
+    else if(a==="login"){ doLogin(); }
+    else if(a==="signout"){ signOut().then(function(){ toast("Signed out"); go("#/"); }); }
+    else if(a==="new"){ createRecord(); }
+    else if(a==="open"){ go("#/admin/r/"+el.getAttribute("data-id")); }
+    else if(a==="todash"){ go("#/admin"); }
+    else if(a==="advance"){ doAdvance(); }
+    else if(a==="setcur"){ doSetCur(+el.getAttribute("data-i")); }
+    else if(a==="delstage"){ doDelStage(+el.getAttribute("data-i")); }
+    else if(a==="addstage"){ doAddStage(); }
+    else if(a==="save"){ doSave(); }
+    else if(a==="delrec"){ doDelRecord(); }
+  });
+
+  /* ============================================================
+     Boot
+     ============================================================ */
+  function applyBrand(){
+    document.getElementById("brandName").textContent = BRAND.name;
+    document.getElementById("brandTag").textContent = BRAND.tag;
+    document.getElementById("footText").textContent = "© "+new Date().getFullYear()+" "+BRAND.name+" · Application tracking service";
+    document.title = BRAND.name+" — Application Tracking";
+    document.getElementById("banner").textContent = USE_SUPABASE ? "" : "Demo mode — connect Supabase in the CONFIG block to go live.";
+  }
+  async function init(){
+    applyBrand();
+    if(USE_SUPABASE){
+      sb.auth.onAuthStateChange(function(_evt,session){ currentUser = session && session.user ? session.user : null; });
+      try{ var s = await sb.auth.getSession(); currentUser = s.data.session ? s.data.session.user : null; }catch(e){}
+    }
+    window.addEventListener("hashchange",route);
+    route();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
