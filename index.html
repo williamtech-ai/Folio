@@ -252,8 +252,8 @@
      Leave blank to run in demo mode (data stays in this browser).
      ============================================================ */
   var BRAND = { name:"Folio", tag:"Application Tracking" };
-  var SUPABASE_URL = "";        // e.g. "https://xxxxxxxx.supabase.co"
-  var SUPABASE_ANON_KEY = "";   // your anon public key
+  var SUPABASE_URL = "https://khmfmquynbgatpunlrjk.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtobWZtcXV5bmJnYXRwdW5scmprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTAyODcsImV4cCI6MjA5ODAyNjI4N30.Fn2BJ-PL-XGXpLVcll3CyBDn-KnftUf-dCO6UsCjDYI";
   /* ============================================================ */
 
   var USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
@@ -388,7 +388,7 @@
       return res.data && res.data[0] ? fromRow(res.data[0]) : null;
     },
     remove: async function(id){
-      var res = await sb.from("applications").delete().eq("id",id);
+      var res = await sb.from("applications").delete().eq("id",id).select("*");
       if(res.error){ console.error(res.error); throw res.error; }
     }
   };
