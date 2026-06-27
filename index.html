@@ -191,6 +191,8 @@
   .btn-ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-soft);border-radius:var(--radius-sm);padding:11px 16px;font-size:14px;font-weight:500;text-decoration:none;display:inline-block;}
   .btn-ghost.danger{border-color:#E6C2BD;color:var(--alert);}
   .btn-advance{border:1.5px solid var(--gold-fill);background:var(--gold-bg);color:var(--gold);border-radius:var(--radius-sm);padding:11px 18px;font-weight:600;font-size:14.5px;}
+  .notify-toggle{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-soft);margin:2px 0 14px;cursor:pointer;}
+  .notify-toggle input{width:16px;height:16px;accent-color:var(--indigo);cursor:pointer;}
 
   .empty{text-align:center;padding:50px 24px;color:var(--ink-soft);}
   .empty .mk{font-family:var(--display);font-size:26px;color:var(--line-strong);letter-spacing:.1em;margin-bottom:12px;}
@@ -236,7 +238,7 @@
 
   <footer class="foot">
     <div class="wrap foot-inner">
-      <span id="footText">© 2026 Folio · Application tracking service</span>
+      <span id="footText">© 2010 Folio · Application tracking service</span>
       <a href="#/admin">Staff sign in</a>
     </div>
   </footer>
@@ -613,10 +615,12 @@
      ADMIN — record editor
      ============================================================ */
   var activeRecord=null;
+  var notifyOn=true;
   async function renderRecord(id){
     app.innerHTML=loadingView();
     try{ activeRecord = await DB.get(id); }catch(e){ console.error(e); }
     if(!activeRecord){ toast("Record not found"); go("#/admin"); return; }
+    notifyOn = true;
     paintRecord();
   }
   function paintRecord(){
@@ -644,7 +648,9 @@
       '<div class="panel"><h2>Process stages</h2><div style="margin-bottom:14px">'+
         (isComplete(r) ? '<span class="pill" style="background:var(--green-bg);color:var(--green);border-color:#BFE0CC">This application is complete</span>'
                        : '<button class="btn-advance" data-action="advance">Advance to next stage &rarr;</button>')+
-        '</div>'+stagesHTML+
+        '</div>'+
+        (DB.mode==="supabase" ? '<label class="notify-toggle"><input type="checkbox" id="notifyChk"'+(notifyOn?' checked':'')+' /> Email the applicant when I change the status</label>' : '')+
+        stagesHTML+
         '<div class="addstage"><input id="newStage" type="text" placeholder="Add a stage…" maxlength="60" /><button data-action="addstage">Add</button></div></div>'+
       '<div class="panel-foot">'+
         '<button class="btn-save" data-action="save">Save changes</button>'+
@@ -653,6 +659,8 @@
     '</div></div>';
     var ns=document.getElementById("newStage");
     ns.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); doAddStage(); } });
+    var nchk=document.getElementById("notifyChk");
+    if(nchk) nchk.addEventListener("change",function(){ notifyOn=this.checked; });
   }
   function readDetailsInto(r){
     document.querySelectorAll("[data-f]").forEach(function(el){ r[el.getAttribute("data-f")]=el.value.trim(); });
@@ -664,15 +672,40 @@
     try{ var saved = await DB.update(r.id, r); if(saved) activeRecord=saved; paintRecord(); if(silentMsg) toast(silentMsg); }
     catch(e){ toast(e.message||"Couldn't save"); }
   }
+  async function notifyApplicant(r){
+    if(DB.mode!=="supabase") return;
+    var email=(r.contact||"").trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast("No email on file — applicant not notified"); return; }
+    try{
+      var s = await sb.auth.getSession();
+      var token = s.data.session ? s.data.session.access_token : "";
+      var res = await fetch("/api/notify",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
+        body: JSON.stringify({
+          to: email,
+          applicantName: r.name,
+          ref: r.ref,
+          statusLabel: statusLabel(r),
+          complete: isComplete(r),
+          trackUrl: location.origin + location.pathname + "#/track/" + encodeURIComponent(r.ref)
+        })
+      });
+      if(res.ok){ toast("Applicant emailed \u2713"); }
+      else { var d={}; try{ d=await res.json(); }catch(e){} toast(d.error || "Couldn't send email"); }
+    }catch(e){ toast("Couldn't send email"); }
+  }
   async function doAdvance(){
     readDetailsInto(activeRecord); var r=activeRecord;
     if(r.current<r.stages.length-1){ r.current++; if(!r.stages[r.current].date) r.stages[r.current].date=todayISO(); }
     await commitActive("Moved to next stage");
+    if(notifyOn) notifyApplicant(activeRecord);
   }
   async function doSetCur(i){
     readDetailsInto(activeRecord); var r=activeRecord;
     r.current=i; if(!r.stages[i].date) r.stages[i].date=todayISO();
     await commitActive();
+    if(notifyOn) notifyApplicant(activeRecord);
   }
   async function doDelStage(i){
     readDetailsInto(activeRecord); var r=activeRecord;
@@ -725,7 +758,7 @@
   function applyBrand(){
     document.getElementById("brandName").textContent = BRAND.name;
     document.getElementById("brandTag").textContent = BRAND.tag;
-    document.getElementById("footText").textContent = "© "+new Date().getFullYear()+" "+BRAND.name+" · Application tracking service";
+    document.getElementById("footText").textContent = "© 2010 "+BRAND.name+" · Application tracking service";
     document.title = BRAND.name+" — Application Tracking";
     document.getElementById("banner").textContent = USE_SUPABASE ? "" : "Demo mode — connect Supabase in the CONFIG block to go live.";
   }
